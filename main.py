@@ -21,7 +21,8 @@ keyboard = Keyboard()
 cpu = CPU(config, screen, keyboard, sound)
 cpu.load_rom_into_memory(config.get('ROM', 'path'))
 
-while True:
+run_loop = True
+while run_loop:
     pygame.time.wait(cpu.clock_freq)
     cpu.execute_instruction()
     cpu.screen.redraw(app_screen)
@@ -29,6 +30,7 @@ while True:
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            run_loop = False
             sys.exit()
         if event.type == pygame.KEYDOWN:
             if pygame.key.name(event.key) in keyboard.keymap.keys():
