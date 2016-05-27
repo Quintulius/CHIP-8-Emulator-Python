@@ -25,8 +25,6 @@ while True:
     pygame.time.wait(cpu.clock_freq)
     cpu.execute_instruction()
     cpu.screen.redraw(app_screen)
-    # surface = pygame.surfarray.make_surface(screen.pixels*255)
-    # app_screen.blit(surface, (0, 0))
     pygame.display.flip()
 
     for event in pygame.event.get():
