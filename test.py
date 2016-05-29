@@ -4,7 +4,7 @@ from random import randint, seed
 import numpy as np
 
 from cpu import CPU
-from screen import Screen, Pixel
+from screen import Screen
 from keyboard import Keyboard
 
 class TestCPUBasic:
@@ -551,23 +551,17 @@ class TestCPUScreen:
         return CPU(config, screen, None, None)
 
     def test_clear_display(self, cpu):
-        for i in range(cpu.screen.width):
-            for j in range(cpu.screen.height):
-                cpu.screen.pixels_matrix[i][j].color == 1
-        cpu.clear_display()
-        for i in range(cpu.screen.width):
-            for j in range(cpu.screen.height):
-                assert(cpu.screen.pixels_matrix[i][j].color == 0)
+            cpu.screen.pixels_matrix = np.ones((cpu.screen.width, cpu.screen.height), dtype=int)
+            cpu.clear_display()
+            assert(np.array_equal(cpu.screen.pixels_matrix, np.zeros((cpu.screen.width, cpu.screen.height), dtype=int)))
 
     def test_display_sprite(self, cpu):
         """
         0xDxyn - DRW Vx , Vy , nibble
         """
         cpu.opcode = 0xD000 | (0 << 8) | (1 << 4) | 4
-        pixel1 = Pixel((63, 1), 1)
-        pixel2 = Pixel((63, 2), 1)
-        cpu.screen.pixels_matrix[63][1] = pixel1
-        cpu.screen.pixels_matrix[63][2] = pixel2
+        cpu.screen.pixels_matrix[63, 1] = 1
+        cpu.screen.pixels_matrix[63, 2] = 1
         cpu.V_register[0] = 62
         cpu.V_register[1] = 31
         cpu.V_register[0xF] = 0
@@ -580,9 +574,5 @@ class TestCPUScreen:
         target = np.zeros((cpu.screen.width, cpu.screen.height), dtype=int)
         target[0:2, 0:3] = 1
         target[63, 0] = 1
-        output = np.empty((cpu.screen.width, cpu.screen.height), dtype=int)
-        for i in range(output.shape[0]):
-            for j in range(output.shape[1]):
-                output[i, j] = cpu.screen.pixels_matrix[i][j].color
-        assert(np.array_equal(output, target))
+        assert(np.array_equal(cpu.screen.pixels_matrix, target))
         assert(cpu.V_register[0xF] == 1)
