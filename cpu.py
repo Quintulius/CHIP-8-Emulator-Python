@@ -19,27 +19,27 @@ class CPU:
         self.I = 0  # 1 * 16-bits
         self.stack = array.array('H', [0]*self.stack_size)
         self.stack_pointer = 0  # 1 * 8-bits
-        self.program_counter = 0  # 1 * 16-bits
+        self.program_counter = self.memory_start  # 1 * 16-bits
         self.opcode = 0x0000
         self.delay_timer = 0
         self.sound_timer = 0
         self.sprites = [
-            [0xF0, 0x90, 0x90, 0x90, 0xF0],
-            [0x20, 0x60, 0x20, 0x20, 0x70],
-            [0xF0, 0x10, 0xF0, 0x80, 0xF0],
-            [0xF0, 0x10, 0xF0, 0x10, 0xF0],
-            [0x90, 0x90, 0xF0, 0x10, 0x10],
-            [0xF0, 0x80, 0xF0, 0x10, 0xF0],
-            [0xF0, 0x80, 0xF0, 0x90, 0xF0],
-            [0xF0, 0x10, 0x20, 0x40, 0x40],
-            [0xF0, 0x90, 0xF0, 0x90, 0xF0],
-            [0xF0, 0x90, 0xF0, 0x10, 0xF0],
-            [0xF0, 0x90, 0xF0, 0x90, 0x90],
-            [0xE0, 0x90, 0xE0, 0x90, 0xE0],
-            [0xF0, 0x80, 0x80, 0x80, 0xF0],
-            [0xE0, 0x90, 0x90, 0x90, 0xE0],
-            [0xF0, 0x80, 0xF0, 0x80, 0xF0],
-            [0xF0, 0x80, 0xF0, 0x80, 0x80]
+            0xF0, 0x90, 0x90, 0x90, 0xF0,
+            0x20, 0x60, 0x20, 0x20, 0x70,
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,
+            0x90, 0x90, 0xF0, 0x10, 0x10,
+            0xF0, 0x80, 0xF0, 0x10, 0xF0,
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,
+            0xF0, 0x10, 0x20, 0x40, 0x40,
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,
+            0xF0, 0x90, 0xF0, 0x90, 0x90,
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,
+            0xF0, 0x80, 0x80, 0x80, 0xF0,
+            0xE0, 0x90, 0x90, 0x90, 0xE0,
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,
+            0xF0, 0x80, 0xF0, 0x80, 0x80
         ]
         self.zero_functions = {
             0x00E0: self.clear_display,
@@ -104,169 +104,125 @@ class CPU:
         """
         0x00EE - RET
         """
-        last_address = self.stack[self.stack_pointer]
+        self.program_counter = self.stack[self.stack_pointer]
         self.stack_pointer -= 1
-        self.program_counter = last_address
 
     def jump_to_location(self):
         """
         0x1nnn - JP addr
         """
-        address = self.opcode & 0x0FFF
-        self.program_counter = address - 2
+        self.program_counter = (self.opcode & 0x0FFF) - 2
 
     def call_subroutine_at(self):
         """
         0x2nnn - CALL addr
         """
-        address = self.opcode & 0x0FFF
         self.stack_pointer += 1
         self.stack[self.stack_pointer] = self.program_counter
-        self.program_counter = address - 2
+        self.program_counter = (self.opcode & 0x0FFF) - 2
 
     def skip_next_if_vx_equals_kk(self):
         """
         0x3xkk - SE Vx, byte
         """
-        x_address = (self.opcode >> 8) & 0xF
-        value = self.opcode & 0x00FF
-        if self.V_register[x_address] == value:
+        if self.V_register[(self.opcode >> 8) & 0xF] == self.opcode & 0x00FF:
             self.program_counter += 2
 
     def skip_next_if_vx_not_equals_kk(self):
         """
         0x4xkk - SNE Vx, byte
         """
-        x_address = (self.opcode >> 8) & 0xF
-        value = self.opcode & 0x00FF
-        if self.V_register[x_address] != value:
+        if self.V_register[(self.opcode >> 8) & 0xF] != self.opcode & 0x00FF:
             self.program_counter += 2
 
     def skip_next_if_vx_equals_vy(self):
         """
         0x5xy0 - SE Vx , Vy
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        if self.V_register[x_address] == self.V_register[y_address]:
+        if self.V_register[(self.opcode >> 8) & 0xF] == self.V_register[(self.opcode >> 4) & 0xF]:
             self.program_counter += 2
 
     def set_vx_to_kk(self):
         """
         0x6xkk - LD Vx, byte
         """
-        x_address = (self.opcode >> 8) & 0xF
-        input_value = self.opcode & 0x00FF
-        self.V_register[x_address] = input_value
+        self.V_register[(self.opcode >> 8) & 0xF] = self.opcode & 0x00FF
 
     def add_to_vx(self):
         """
         0x7xkk - ADD Vx, byte
         """
         x_address = (self.opcode >> 8) & 0xF
-        input_value = self.opcode & 0x00FF
-        new_value = (input_value + self.V_register[x_address]) & 0xFF
-        self.V_register[x_address] = new_value
+        self.V_register[x_address] = ((self.opcode & 0x00FF) + self.V_register[x_address]) & 0xFF
 
     def skip_next_if_vx_not_equals_vy(self):
         """
         0x9xy0 - SNE Vx, Vy
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        if self.V_register[x_address] != self.V_register[y_address]:
+        if self.V_register[(self.opcode >> 8) & 0xF] != self.V_register[(self.opcode >> 4) & 0xF]:
             self.program_counter += 2
 
     def set_i_register(self):
         """
         0xAnnn - LD I, addr
         """
-        value = self.opcode & 0x0FFF
-        self.I = value
+        self.I = self.opcode & 0x0FFF
 
     def jump_to_location_shift(self):
         """
         0xBnnn - JP V0, addr
         """
-        shift = self.opcode & 0x0FFF
-        self.program_counter = self.V_register[0] + shift - 2
+        self.program_counter = self.V_register[0] + (self.opcode & 0x0FFF) - 2
 
     def set_vx_random(self):
         """
         0xCxkk - RND Vx, byte
         """
-        x_address = (self.opcode >> 8) & 0xF
-        input_value = self.opcode & 0x00FF
-        random_integer = randint(0, 0xFF)
-        self.V_register[x_address] = input_value & random_integer
+        self.V_register[(self.opcode >> 8) & 0xF] = (self.opcode & 0x00FF) & randint(0, 0xFF)
 
     def display_sprite(self):
         """
         0xDxyn - DRW Vx , Vy , nibble
         """
-        n = self.opcode & 0xF
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        x_pos_init = self.V_register[x_address]
-        y_pos_init = self.V_register[y_address]
+        x_pos_init = self.V_register[(self.opcode >> 8) & 0xF]
+        y_pos_init = self.V_register[(self.opcode >> 4) & 0xF]
         self.V_register[0xF] = 0
-
-        for y_shift in range(n):
+        for y_shift in range(self.opcode & 0xF):
             byte = self.memory[self.I+y_shift]
             byte = '{0:0{1}b}'.format(byte, 8)
-
-            y_pos = y_pos_init + y_shift
-            y_pos = y_pos % self.screen.height
-
-            for x_shift in range(8):
-                x_pos = x_pos_init + x_shift
-                x_pos = x_pos % self.screen.width
-
-                color = int(byte[x_shift])
-                curr_color = self.screen.pixels_matrix[x_pos][y_pos].color
+            y_pos = (y_pos_init + y_shift) % self.screen.height
+            for x_shift, bit in enumerate(byte):
+                x_pos = (x_pos_init + x_shift) % self.screen.width
+                color = int(bit)
+                curr_color = self.screen.pixels_matrix[x_pos, y_pos]
                 if not (color == 0 and curr_color == 0):
-                    if color == 1 and curr_color == 1:
-                        self.V_register[0xF] = 1
-                        color = 0
-                    elif color == 0 and curr_color == 1:
-                        color = 1
+                    self.V_register[0xF] = not((color == 1) and (curr_color == 1))
                     self.screen.to_redraw.append((x_pos, y_pos))
-                    self.screen.pixels_matrix[x_pos][y_pos].color = color
+                    self.screen.pixels_matrix[x_pos, y_pos] = color ^ curr_color
 
     def set_vx_to_vy(self):
         """
         0x8xy0 - LD Vx, Vy
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        self.V_register[x_address] = self.V_register[y_address]
+        self.V_register[(self.opcode >> 8) & 0xF] = self.V_register[(self.opcode >> 4) & 0xF]
 
     def set_vx_to_vx_or_vy(self):
         """
         0x8xy1 - OR Vx, Vy.
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        or_value = self.V_register[x_address] | self.V_register[y_address]
-        self.V_register[x_address] = or_value
+        self.V_register[(self.opcode >> 8) & 0xF] |= self.V_register[(self.opcode >> 4) & 0xF]
 
     def set_vx_to_vx_and_vy(self):
         """
         0x8xy2 - AND Vx, Vy.
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        and_value = self.V_register[x_address] & self.V_register[y_address]
-        self.V_register[x_address] = and_value
+        self.V_register[(self.opcode >> 8) & 0xF] &= self.V_register[(self.opcode >> 4) & 0xF]
 
     def set_vx_to_vx_xor_vy(self):
         """
         0x8xy3 - XOR Vx, Vy.
         """
-        x_address = (self.opcode >> 8) & 0xF
-        y_address = (self.opcode >> 4) & 0xF
-        xor_value = self.V_register[x_address] ^ self.V_register[y_address]
-        self.V_register[x_address] = xor_value
+        self.V_register[(self.opcode >> 8) & 0xF] ^= self.V_register[(self.opcode >> 4) & 0xF]
 
     def set_vx_to_vx_plus_vy(self):
         """
@@ -275,12 +231,8 @@ class CPU:
         x_address = (self.opcode >> 8) & 0xF
         y_address = (self.opcode >> 4) & 0xF
         add_value = self.V_register[x_address] + self.V_register[y_address]
-        if add_value > 0xFF:
-            self.V_register[x_address] = add_value & 0xFF
-            self.V_register[0xF] = 1
-        else:
-            self.V_register[x_address] = add_value
-            self.V_register[0xF] = 0
+        self.V_register[x_address] = add_value & 0xFF
+        self.V_register[0xF] = add_value > 0xFF
 
     def set_vx_to_vx_minus_vy(self):
         """
@@ -296,9 +248,8 @@ class CPU:
         """
         0x8xy6 - SHR Vx, {Vy}
         """
-        x_address = (self.opcode >> 8) & 0xF
-        self.V_register[0xF] = (self.V_register[x_address] & 0x1) == 1
-        self.V_register[x_address] >>= 1
+        self.V_register[0xF] = (self.V_register[(self.opcode >> 8) & 0xF] & 0x1) == 1
+        self.V_register[(self.opcode >> 8) & 0xF] >>= 1
 
     def set_vx_to_vy_minus_vx(self):
         """
@@ -322,48 +273,42 @@ class CPU:
         """
         0xEx9E - SKP Vx
         """
-        x_address = (self.opcode >> 8) & 0xF
-        if self.keyboard.key_down == self.V_register[x_address]:
+        if self.keyboard.key_down == self.V_register[(self.opcode >> 8) & 0xF]:
             self.program_counter += 2
 
     def skip_next_if_key_not_pressed(self):
         """
         0xExA1 - SKNP Vx
         """
-        x_address = (self.opcode >> 8) & 0xF
-        if self.keyboard.key_down != self.V_register[x_address]:
+        if self.keyboard.key_down != self.V_register[(self.opcode >> 8) & 0xF]:
             self.program_counter += 2
 
     def set_vx_dt_value(self):
         """
         0xFx07 - LD Vx, DT
         """
-        x_address = (self.opcode >> 8) & 0xF
-        self.V_register[x_address] = self.delay_timer
+        self.V_register[(self.opcode >> 8) & 0xF] = self.delay_timer
 
     def wait_for_key_pressed(self):
         """
         0xFx0A - LD Vx, K
         """
-        x_address = (self.opcode >> 8) & 0xF
         if self.keyboard.key_down is None:
             self.program_counter -= 2
         else:
-            self.V_register[x_address] = self.keyboard.key_down
+            self.V_register[(self.opcode >> 8) & 0xF] = self.keyboard.key_down
 
     def set_dt_to_vx(self):
         """
         0xFx15 - LD DT, Vx
         """
-        x_address = (self.opcode >> 8) & 0xF
-        self.delay_timer = self.V_register[x_address]
+        self.delay_timer = self.V_register[(self.opcode >> 8) & 0xF]
 
     def set_st_to_vx(self):
         """
         0xFx18 - LD ST, Vx
         """
-        x_address = (self.opcode >> 8) & 0xF
-        self.sound_timer = self.V_register[x_address]
+        self.sound_timer = self.V_register[(self.opcode >> 8) & 0xF]
 
     def add_to_i(self):
         """
@@ -384,11 +329,10 @@ class CPU:
         """
         0xFx33 - LD B, Vx
         """
-        x_address = (self.opcode >> 8) & 0xF
-        bcd = '{:03d}'.format(self.V_register[x_address])
-        self.memory[self.I] = int(bcd[0])
-        self.memory[self.I+1] = int(bcd[1])
-        self.memory[self.I+2] = int(bcd[2])
+        x_val = self.V_register[(self.opcode >> 8) & 0xF]
+        self.memory[self.I] = x_val // 100
+        self.memory[self.I+1] = (x_val // 10) % 10
+        self.memory[self.I+2] = x_val % 10
 
     def write_vx_in_memory(self):
         """
@@ -424,19 +368,15 @@ class CPU:
             return self.main_functions[opcode_type]
 
     def load_sprites(self):
-        for i, sprite in enumerate(self.sprites):
-            self.memory[i*5:(i+1)*5] = sprite
+        self.memory[0:0xF*5] = self.sprites
 
     def load_rom_into_memory(self, filename):
         with open(filename, 'rb') as f:
             program_binaries = f.read()
-
-        assert (len(program_binaries) <= 4096 - self.memory_start), 'ROM is too big to fit in memory'
-
-        for i, bite in enumerate(program_binaries):
-            self.memory[i+self.memory_start] = ord(bite)
-
-        self.program_counter = 0x200
+        rom_size = len(program_binaries)
+        assert (rom_size <= self.memory_size - self.memory_start), \
+            'ROM {} is too big to fit in memory ({} bytes)'.format(filename, rom_size)
+        self.memory[self.memory_start:self.memory_start+rom_size] = program_binaries
 
     def execute_instruction(self):
         self.opcode = self.memory[self.program_counter] << 8 | self.memory[self.program_counter+1]
